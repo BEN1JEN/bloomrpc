@@ -4,6 +4,7 @@ import { ProtoInfo } from './protoInfo';
 import * as grpc from 'grpc';
 import * as fs from "fs";
 import { Certificate } from "./importCertificates";
+const { remote } = require('electron');
 
 export interface GRPCRequestInfo {
   url: string;
@@ -255,6 +256,28 @@ export class GRPCRequest extends EventEmitter {
     });
   }
 
+  static flattenObject = function(ob: any) {
+    var toReturn: any = {};
+    var flatObject;
+    for (var i in ob) {
+      if (!ob.hasOwnProperty(i)) {
+        continue;
+      }
+      if ((typeof ob[i]) === 'object' && !Buffer.isBuffer(ob[i])) {
+        flatObject = GRPCRequest.flattenObject(ob[i]);
+        for (var x in flatObject) {
+          if (!flatObject.hasOwnProperty(x)) {
+            continue;
+          }
+          toReturn[i + (typeof x != 'number' ? '.' + x : '')] = flatObject[x];
+        }
+      } else {
+        toReturn[i] = ob[i];
+      }
+    }
+    return toReturn;
+  };
+
   /**
    * Handle unary response
    * @param err
@@ -273,6 +296,33 @@ export class GRPCRequest extends EventEmitter {
         this.emit(GRPCEventType.ERROR, err, responseMetaInformation);
       }
     } else {
+      
+      let flat = GRPCRequest.flattenObject(response);
+      for (let key of Object.keys(flat)) {
+        if (key.includes("data")) {
+          try {
+            let base64 = flat[key].toString("base64");
+            let window = new remote.BrowserWindow({
+              show: true,
+              width: 1280,
+              height: 720,
+              backgroundColor: "#f0f2f5",
+              webPreferences: {
+                nodeIntegration: true
+              }
+            });
+
+          
+            window.loadURL(`data:image/jpeg;base64,${base64}`);
+            window.webContents.on('did-finish-load', () => {
+              window.setTitle(key);
+            });
+          } catch(e) {
+            console.log(e);
+          }
+        }
+      }
+
       this.emit(GRPCEventType.DATA, response, responseMetaInformation);
     }
     this.emit(GRPCEventType.END);
