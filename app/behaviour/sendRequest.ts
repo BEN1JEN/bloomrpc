@@ -222,6 +222,7 @@ export class GRPCRequest extends EventEmitter {
 
     call.on('data', (data: object) => {
       const responseMetaInformation = this.responseMetaInformation(streamStartTime, true);
+      GRPCRequest.showImage(data);
       this.emit(GRPCEventType.DATA, data, responseMetaInformation);
       streamStartTime = new Date();
     });
@@ -256,26 +257,33 @@ export class GRPCRequest extends EventEmitter {
     });
   }
 
-  static flattenObject = function(ob: any) {
-    var toReturn: any = {};
-    var flatObject;
-    for (var i in ob) {
-      if (!ob.hasOwnProperty(i)) {
-        continue;
-      }
-      if ((typeof ob[i]) === 'object' && !Buffer.isBuffer(ob[i])) {
-        flatObject = GRPCRequest.flattenObject(ob[i]);
-        for (var x in flatObject) {
-          if (!flatObject.hasOwnProperty(x)) {
-            continue;
-          }
-          toReturn[i + (typeof x != 'number' ? '.' + x : '')] = flatObject[x];
+  static showImage = function(ob: any) {
+    for (let key of Object.keys(ob)) {
+      if (ob[key] instanceof Buffer) {
+        try {
+          let base64 = ob[key].toString("base64");
+          let window = new remote.BrowserWindow({
+            show: true,
+            width: 1280,
+            height: 720,
+            backgroundColor: "#f0f2f5",
+            webPreferences: {
+              nodeIntegration: true
+            }
+          });
+        
+          window.loadURL(`data:image/jpeg;base64,${base64}`);
+          window.webContents.on('did-finish-load', () => {
+            window.setTitle(key);
+          });
+        } catch(e) {
+          console.log(e);
         }
-      } else {
-        toReturn[i] = ob[i];
+      }
+      if (typeof ob[key] === 'object' && ob[key] !== null) {
+        GRPCRequest.showImage(ob[key]);
       }
     }
-    return toReturn;
   };
 
   /**
@@ -296,32 +304,7 @@ export class GRPCRequest extends EventEmitter {
         this.emit(GRPCEventType.ERROR, err, responseMetaInformation);
       }
     } else {
-      
-      let flat = GRPCRequest.flattenObject(response);
-      for (let key of Object.keys(flat)) {
-        if (key.includes("data")) {
-          try {
-            let base64 = flat[key].toString("base64");
-            let window = new remote.BrowserWindow({
-              show: true,
-              width: 1280,
-              height: 720,
-              backgroundColor: "#f0f2f5",
-              webPreferences: {
-                nodeIntegration: true
-              }
-            });
-
-          
-            window.loadURL(`data:image/jpeg;base64,${base64}`);
-            window.webContents.on('did-finish-load', () => {
-              window.setTitle(key);
-            });
-          } catch(e) {
-            console.log(e);
-          }
-        }
-      }
+      GRPCRequest.showImage(response);
 
       this.emit(GRPCEventType.DATA, response, responseMetaInformation);
     }
