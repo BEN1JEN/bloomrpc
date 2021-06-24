@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useEffect, useState } from "react";
-import { Button, Icon, Modal, Tooltip, Tree } from 'antd';
+import { Button, Icon, Modal, Tooltip, Tree, Input } from 'antd';
 import { Badge } from '../Badge/Badge';
 import { OnProtoUpload, ProtoFile, ProtoService, importProtos } from '../../behaviour';
 import { PathResolution } from "./PathResolution";
@@ -16,6 +16,7 @@ interface SidebarProps {
 
 export function Sidebar({ protos, onMethodSelected, onProtoUpload, onDeleteAll, onReload }: SidebarProps) {
 
+  const [searchText, setSearchText] = useState<string>("");
   const [importPaths, setImportPaths] = useState<string[]>([""]);
   const [importPathVisible, setImportPathsVisible] = useState(false);
 
@@ -88,6 +89,7 @@ export function Sidebar({ protos, onMethodSelected, onProtoUpload, onDeleteAll, 
           </Tooltip>
         </div>
       </div>
+      <Input onChange={ev => { setSearchText(ev.target.value.toLowerCase()); }}></Input>
       <div style={{
         overflow: "auto",
         maxHeight: "calc(100vh - 85px)",
@@ -137,7 +139,9 @@ export function Sidebar({ protos, onMethodSelected, onProtoUpload, onDeleteAll, 
                   key={`${proto.fileName}-${service}`}
                 >
 
-                  {proto.services[service].methodsName.map((method: any) => (
+                  {proto.services[service].methodsName.filter((method: any) => {
+                  	return method.toString().toLowerCase().includes(searchText);
+                  }).map((ele: any) => ele).sort().map((method: any) => (
                     <Tree.TreeNode
                       icon={<Badge type="method"> M </Badge>}
                       title={method}
